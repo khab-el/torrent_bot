@@ -19,13 +19,11 @@ class Api(object):
             async with session.post(self.URL % (self._token, method),
                                     data=message,
                                     headers=headers) as resp:
-                print(self.URL % (self._token, method), message, resp.text)
-                # try:
-                #     assert resp.status == 200
-                # except HTTPError as http_err:
-                #     print(f'HTTP error occurred: {http_err}') 
-                # except Exception as err:
-                #     print(f'Other error occurred: {err}') 
+                responseCode = resp.status
+                if ((responseCode - (responseCode % 100)) / 100) == 2:
+                    print('Successful send')
+                else:
+                    print(resp.text())
 
     async def sendMessage(self, chat_id, text, **kwargs):
 

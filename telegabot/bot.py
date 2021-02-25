@@ -56,6 +56,8 @@ class Bot(object):
         self.aval_size = list(range(int(size.split('-')[0]), int(size.split('-')[1])))
 
         self.searchPage(file_name)
+        info = dict()
+        cnt =  0
         for item in self.soup.find_all('a', {"class": "small tr-dl dl-stub"}):
             if 'GB' in item.get_text():
                 item_size = item.get_text()
@@ -69,12 +71,15 @@ class Bot(object):
                     # print(get_data_topic_id, url_for_torrent)
                     for link in self.soup.find_all('a', {"class": "med tLink ts-text hl-tags bold"}):
                         if (('DVDRip' or 'HDRip' or 'BDRip' or 'WEB-DLRip' in link.get_text())) and (get_data_topic_id == link.get('data-topic_id')):
-                            resp_check_format = self.session.get('https://rutracker.org/forum/' + link.get('href'), cookies=self.session.cookies)
-                            bsoup = BeautifulSoup(resp_check_format.content, features="lxml")
-                            for form in bsoup.find_all('span'):
-                                download_url = 'https://rutracker.org/forum/' + url_for_torrent
-                                meta_info = link.get_text()
-                                return(download_url, meta_info)
+                            download_url = 'https://rutracker.org/forum/' + url_for_torrent
+                            meta_info = link.get_text()
+                            info[get_data_topic_id] = [download_url, meta_info]
+                            cnt += 1
+                            if cnt == 3:
+                                return(info)
+        
+        if cnt > 0 and < 3:
+            return(info)
 
     def downloadTorrent(self, download_url):
         file_tr = self.translite(self.file_name)

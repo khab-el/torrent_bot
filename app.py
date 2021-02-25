@@ -41,16 +41,24 @@ class EchoConversation(Conversation):
         size = '2-5'
         filmRait = bot.find_ball(API_KEY, KINOPOISK_CSE, text)
         trailer = bot.find_trailer(API_KEY, YOUTUBE_CSE, filmRait[0])
-        if not os.path.exists(f'torrent_file/{filmRait[0]}.torrent'):
-            bot.openSession(LOGIN,PASSWORD)
-            rutracker = bot.findTorrent(filmRait[0], size)
-            if rutracker:
-                file_nm = bot.downloadTorrent(rutracker[0])
-                await self.sendDocument( chat_id=chat_id, caption=f'{rutracker[1]} {filmRait[1]} {filmRait[2]} {filmRait[3]} {trailer}', document=f'torrent_file/{file_nm}.torrent' )
-            else:
-                await self.sendMessage(chat_id=chat_id, text=f'{filmRait[1]} {filmRait[2]} {filmRait[3]} {trailer}')
-        else:
-            await self.sendDocument( chat_id=chat_id, caption=f'{filmRait[1]} {filmRait[2]} {filmRait[3]} {trailer}', document=f'torrent_file/{file_nm}.torrent' )
+        
+        bot.openSession(LOGIN,PASSWORD)
+        rutracker = bot.findTorrent(filmRait[0], size)
+        print(rutracker)
+        text = f'Трейлер: {trailer}\nКинопоиск: {filmRait[3]}\n{filmRait[1]}\n{filmRait[2]}\n\n\n'
+        for k,v in rutracker.items():
+            text += f'{v[1]}\nCкачать: /download{k}\n\n'
+        await self.sendMessage(chat_id=chat_id, text=text)
+        # if not os.path.exists(f'torrent_file/{filmRait[0]}.torrent'):
+        #     bot.openSession(LOGIN,PASSWORD)
+        #     rutracker = bot.findTorrent(filmRait[0], size)
+        #     if rutracker:
+        #         file_nm = bot.downloadTorrent(rutracker[0])
+        #         await self.sendDocument( chat_id=chat_id, caption=f'{rutracker[1]} {filmRait[1]} {filmRait[2]} {filmRait[3]} {trailer}', document=f'torrent_file/{file_nm}.torrent' )
+        #     else:
+        #         await self.sendMessage(chat_id=chat_id, text=f'{filmRait[1]} {filmRait[2]} {filmRait[3]} {trailer}')
+        # else:
+        #     await self.sendDocument( chat_id=chat_id, caption=f'{filmRait[1]} {filmRait[2]} {filmRait[3]} {trailer}', document=f'torrent_file/{filmRait[0]}.torrent' )
 
     async def callback_handler(self, message):
         chat_id = message['message']['chat']['id']
