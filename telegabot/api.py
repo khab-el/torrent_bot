@@ -1,6 +1,8 @@
 import json
 import requests
 import os
+import re
+import logging
 
 from aiohttp import web
 from aiohttp.client_reqrep import FormData
@@ -21,9 +23,11 @@ class Api(object):
                                     headers=headers) as resp:
                 responseCode = resp.status
                 if ((responseCode - (responseCode % 100)) / 100) == 2:
-                    print('Successful send')
+                    # print('Successful send')
+                    logging.info(f'Successful send message method {method}')
                 else:
-                    print(resp.text())
+                    # print(resp.text())
+                    logging.error(f'Request text - {message}; Response text - {resp.text()}')
 
     async def sendMessage(self, chat_id, text, **kwargs):
 
@@ -36,17 +40,25 @@ class Api(object):
             'Content-Type': 'application/json'
         }
 
+        if kwargs.get('parse_mode'):
+            message['parse_mode'] = kwargs['parse_mode']
+        if kwargs.get('entities'):
+            message['entities'] = kwargs['entities']
+        if kwargs.get('disable_web_page_preview'):
+            message['disable_web_page_preview'] = kwargs['disable_web_page_preview']
+        if kwargs.get('disable_notification'):
+            message['disable_notification'] = kwargs['disable_notification']
+        if kwargs.get('reply_to_message_id'):
+            message['reply_to_message_id'] = kwargs['reply_to_message_id']
+        if kwargs.get('allow_sending_without_reply'):
+            message['allow_sending_without_reply'] = kwargs['allow_sending_without_reply']
         if kwargs.get('reply_markup'):
             message['reply_markup'] = kwargs['reply_markup']
 
         await self._request('sendMessage', json.dumps(message), headers)
 
     async def sendDocument(self, chat_id, document, **kwargs):
-        # data = FormData()
-        # data.add_field('chat_id', chat_id)
-        # data.add_field('document',
-        #             open('requirements.txt', 'rb'),
-        #             content_type='multipart/form-data')
+
         message = {
             'chat_id': str(chat_id),
             'document':  open(document, 'rb')
@@ -105,10 +117,16 @@ class Conversation(Api):
     async def callback_handler(self, message):
         pass
 
+    async def download_handler(self, message):
+        pass
+
     async def handler(self, request):
         message = await request.json()
         if message.get('message'):
-            asyncio.ensure_future(self.message_handler(message.get('message')))
+            if re.search(r'^/download(.*)', message['message']['text']):
+                asyncio.ensure_future(self.download_handler(message.get('message')))
+            else:
+                asyncio.ensure_future(self.message_handler(message.get('message')))
         elif message.get('callback_query'):
             asyncio.ensure_future(self.callback_handler(message.get('callback_query')))
         return aiohttp.web.Response(status=200)

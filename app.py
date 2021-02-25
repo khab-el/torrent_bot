@@ -1,8 +1,10 @@
 import configparser
 import ssl
-import json
-import requests
+import re
+import logging
 import os
+import pytz
+from datetime import datetime
 
 from aiohttp import web
 # from aiohttp.client_reqrep import FormData
@@ -26,12 +28,14 @@ API_KEY = config['google']['api_key']
 KINOPOISK_CSE = config['kinopoisk']['cse']
 YOUTUBE_CSE = config['youtube']['cse']
 
-WEBHOOK_SSL_CERT = "ssl/cert.pem"
-WEBHOOK_SSL_PRIV = "ssl/key.key"
+WEBHOOK_SSL_CERT = config['ssl']['public_cert']
+WEBHOOK_SSL_PRIV = config['ssl']['private_key']
+
+LOGPATH = config.get('logs', 'logpath')
 
 bot = Bot()
 
-class EchoConversation(Conversation):
+class TorrentConversation(Conversation):
     def __init__(self, token, loop):
         super().__init__(token, loop)
 
@@ -39,32 +43,29 @@ class EchoConversation(Conversation):
         chat_id = message['chat']['id']
         text = message['text']
         size = '2-5'
+
         filmRait = bot.find_ball(API_KEY, KINOPOISK_CSE, text)
         trailer = bot.find_trailer(API_KEY, YOUTUBE_CSE, filmRait[0])
         
         bot.openSession(LOGIN,PASSWORD)
         rutracker = bot.findTorrent(filmRait[0], size)
-        print(rutracker)
-        text = f'Трейлер: {trailer}\nКинопоиск: {filmRait[3]}\n{filmRait[1]}\n{filmRait[2]}\n\n\n'
+        text = f'Трейлер: {trailer}\nСтраница на Кинопоиск: {filmRait[3]}\n{filmRait[1]}\n{filmRait[2]}\n\n\n'
         for k,v in rutracker.items():
-            text += f'{v[1]}\nCкачать: /download{k}\n\n'
+            text += f'{v[1]}\nРазмер: {v[2]}\nCкачать: /download{k}\n\n'
         await self.sendMessage(chat_id=chat_id, text=text)
-        # if not os.path.exists(f'torrent_file/{filmRait[0]}.torrent'):
-        #     bot.openSession(LOGIN,PASSWORD)
-        #     rutracker = bot.findTorrent(filmRait[0], size)
-        #     if rutracker:
-        #         file_nm = bot.downloadTorrent(rutracker[0])
-        #         await self.sendDocument( chat_id=chat_id, caption=f'{rutracker[1]} {filmRait[1]} {filmRait[2]} {filmRait[3]} {trailer}', document=f'torrent_file/{file_nm}.torrent' )
-        #     else:
-        #         await self.sendMessage(chat_id=chat_id, text=f'{filmRait[1]} {filmRait[2]} {filmRait[3]} {trailer}')
-        # else:
-        #     await self.sendDocument( chat_id=chat_id, caption=f'{filmRait[1]} {filmRait[2]} {filmRait[3]} {trailer}', document=f'torrent_file/{filmRait[0]}.torrent' )
 
     async def callback_handler(self, message):
         chat_id = message['message']['chat']['id']
         call_back = message['data']
         callback_query_id = message['callback_query_id']
         await self.sendMessage( chat_id, call_back )
+
+    async def download_handler(self, message):
+        chat_id = message['chat']['id']
+        text = message['text']
+        download_url = 'https://rutracker.org/forum/dl.php?t=' + re.search(r'^/download(.*)', text)[1]
+        file_nm = bot.downloadTorrent(download_url)
+        await self.sendDocument(chat_id=chat_id, document=f'torrent_file/{file_nm}.torrent')
 
 # async def middleware_factory(app, handler):
 #     async def middleware_handler(request):
@@ -77,8 +78,8 @@ class EchoConversation(Conversation):
 
 async def init_app():
     app = web.Application(middlewares=[])
-    echobot = EchoConversation(TOKEN, loop)
-    app.router.add_post('/', echobot.handler)
+    torrentbot = TorrentConversation(TOKEN, loop)
+    app.router.add_post('/', torrentbot.handler)
     # app.middlewares.append(middleware_factory)
     return app
 
@@ -86,6 +87,20 @@ async def init_app():
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     app = loop.run_until_complete(init_app())
+
     context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
     context.load_cert_chain(WEBHOOK_SSL_CERT, WEBHOOK_SSL_PRIV)
+
+    if LOGPATH:
+        logging.basicConfig(
+            filename='{LOGPATH}/telegram_bot_{date}.log'.format(LOGPATH=LOGPATH, date=datetime.utcnow().astimezone(pytz.timezone('Europe/Moscow')).strftime("%Y-%m-%d")), 
+            level=logging.DEBUG, 
+            format='%(asctime)s - %(name)s - %(levelname)s : %(message)s', 
+            datefmt='%m/%d/%Y %I:%M:%S %p')
+    else:
+        logging.basicConfig(
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            level=logging.DEBUG 
+        )
     web.run_app(app, host='0.0.0.0', port=PORT, ssl_context=context)
+    logging.info(f'Torrent bot start on 0.0.0.0:{PORT}')
