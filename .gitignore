@@ -1,0 +1,7 @@
+logs
+torrent_file
+ssl
+*.html
+venv
+telegabot/credentials.py
+*/*/__pycache__
