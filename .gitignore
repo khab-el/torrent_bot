@@ -1,6 +1,7 @@
 logs
 torrent_file
 ssl
+configs/bot.cfg
 *.html
 venv
 telegabot/credentials.py
