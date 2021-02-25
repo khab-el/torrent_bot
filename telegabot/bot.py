@@ -8,6 +8,20 @@ class Bot(object):
     def __init__(self):
         pass
 
+    def translite(self, text):
+        symbols = (u"абвгдеёжзийклмнопрстуфхцчшщыэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЭЮЯ ",
+           u"abvgdeejzijklmnoprstufhzcssyeuaABVGDEEJZIJKLMNOPRSTUFHZCSSYEUA_")
+        exclude_symbols = ['ь', 'ъ', 'Ь', 'Ъ']
+
+        tr = {ord(a):ord(b) for a, b in zip(*symbols)}
+        
+        for i in exclude_symbols:
+            text = text.replace(i, '')
+
+        text= u'%s' % text
+        
+        return text.translate(tr)
+
     def openSession(self, login, password):
         self.login = login
         self.password = password
@@ -63,6 +77,7 @@ class Bot(object):
                                 return(download_url, meta_info)
 
     def downloadTorrent(self, download_url):
+        file_tr = self.translite(self.file_name)
         for i in self.soup.find_all('script'):
             if 'form_token' in str(i):
                 # print(re.split(r'(.*): \'(.*)\'', re.search( r'form_token: .*', i.get_text())[0])[2])
@@ -70,12 +85,12 @@ class Bot(object):
 
                 data_for_download = {'form_token': token_id}
                 resp_download_file = self.session.post(download_url, data=data_for_download, cookies=self.session.cookies)
-                file = open('torrent_file/'+self.file_name+'.torrent', 'wb')
+                file = open(f'torrent_file/{file_tr}.torrent', 'wb')
                 for chunk in resp_download_file.iter_content(100000):
                     file.write(chunk)
                 file.close()
                 # print(file_name, download_url, 'Downloaded successfull')
-                return True
+                return file_tr
         
     def google_search(self, key, cse, file_name):
         url = 'https://www.googleapis.com/customsearch/v1'

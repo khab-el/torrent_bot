@@ -1,0 +1,136 @@
+import json
+import requests
+import os
+
+from aiohttp import web
+from aiohttp.client_reqrep import FormData
+import aiohttp
+import asyncio
+
+class Api(object):
+    URL = 'https://api.telegram.org/bot%s/%s'
+
+    def __init__(self, token, loop):
+        self._token = token
+        self._loop = loop
+
+    async def _request(self, method, message, headers):
+        async with aiohttp.ClientSession(loop=self._loop) as session:
+            async with session.post(self.URL % (self._token, method),
+                                    data=message,
+                                    headers=headers) as resp:
+                print(self.URL % (self._token, method), message, resp.text)
+                # try:
+                #     assert resp.status == 200
+                # except HTTPError as http_err:
+                #     print(f'HTTP error occurred: {http_err}') 
+                # except Exception as err:
+                #     print(f'Other error occurred: {err}') 
+
+    async def sendMessage(self, chat_id, text, **kwargs):
+
+        message = {
+            "chat_id": chat_id,
+            "text": text
+        }
+
+        headers = {
+            'Content-Type': 'application/json'
+        }
+
+        if kwargs.get('reply_markup'):
+            message['reply_markup'] = kwargs['reply_markup']
+
+        await self._request('sendMessage', json.dumps(message), headers)
+
+    async def sendDocument(self, chat_id, document, **kwargs):
+        # data = FormData()
+        # data.add_field('chat_id', chat_id)
+        # data.add_field('document',
+        #             open('requirements.txt', 'rb'),
+        #             content_type='multipart/form-data')
+        message = {
+            'chat_id': str(chat_id),
+            'document':  open(document, 'rb')
+        }
+
+        if kwargs.get('thumb'):
+            message['thumb'] = kwargs['thumb']
+        if kwargs.get('caption'):
+            message['caption'] = kwargs['caption']
+        if kwargs.get('parse_mode'):
+            message['parse_mode'] = kwargs['parse_mode']      
+        if kwargs.get('caption_entities'):
+            message['caption_entities'] = kwargs['caption_entities'] 
+        if kwargs.get('disable_content_type_detection'):
+            message['disable_content_type_detection'] = kwargs['disable_content_type_detection'] 
+        if kwargs.get('disable_notification'):
+            message['disable_notification'] = kwargs['disable_notification']  
+        if kwargs.get('reply_to_message_id'):
+            message['reply_to_message_id'] = kwargs['reply_to_message_id'] 
+        if kwargs.get('allow_sending_without_reply'):
+            message['allow_sending_without_reply'] = kwargs['allow_sending_without_reply'] 
+        if kwargs.get('reply_markup'):
+            message['reply_markup'] = kwargs['reply_markup']
+
+        await self._request('sendDocument', message, headers=None)
+
+    async def answerCallbackQuery(self, callback_query_id, **kwargs):
+
+        message = {
+            "callback_query_id": callback_query_id
+        }
+
+        headers = {
+            'Content-Type': 'application/json'
+        }
+
+        if kwargs.get('text'):
+            message['text'] = kwargs['text']
+        if kwargs.get('show_alert'):
+            message['show_alert'] = kwargs['show_alert']
+        if kwargs.get('url'):
+            message['url'] = kwargs['url']
+        if kwargs.get('cache_time'):
+            message['cache_time'] = kwargs['cache_time']
+
+        await self._request('answerCallbackQuery', json.dumps(message), headers)
+
+
+class Conversation(Api):
+    def __init__(self, token, loop):
+        super().__init__(token, loop)
+
+    async def message_handler(self, message):
+        pass
+
+    async def callback_handler(self, message):
+        pass
+
+    async def handler(self, request):
+        message = await request.json()
+        if message.get('message'):
+            asyncio.ensure_future(self.message_handler(message.get('message')))
+        elif message.get('callback_query'):
+            asyncio.ensure_future(self.callback_handler(message.get('callback_query')))
+        return aiohttp.web.Response(status=200)
+
+
+class InlineKeyboard(object):
+    def __init__(self):
+        self.keyboard = {'inline_keyboard': []}
+
+    def button(self, text, callback_data):
+        button = {
+            "text": text,
+            "callback_data": callback_data
+        }
+        return button
+    
+    def add(self, *args):
+        button_lst = list()
+        button_lst.extend(args)
+        self.keyboard['inline_keyboard'].append(button_lst)
+
+    def get_keyboard(self):
+        return self.keyboard
