@@ -35,7 +35,7 @@ class Bot(object):
 
         # login in rutracker.org with generated body and sessions cookies
         resp = self.session.post(login_url, data=data_for_login, cookies=self.session.cookies)
-        responseCode = resp.status
+        responseCode = resp.status_code
         if ((responseCode - (responseCode % 100)) / 100) == 2:
             # print('Successful send')
             logging.info(f'Successful login in rutracker')
