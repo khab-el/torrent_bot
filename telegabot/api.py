@@ -148,8 +148,11 @@ class Conversation(Api):
     async def handler(self, request):
         message = await request.json()
         if message.get('message'):
-            if re.search(r'^/download(.*)', message['message'].get('text')):
-                asyncio.ensure_future(self.download_handler(message.get('message')))
+            if message['message'].get('text'):
+                if re.search(r'^/download(.*)', message['message'].get('text')):
+                    asyncio.ensure_future(self.download_handler(message.get('message')))
+                else:
+                    asyncio.ensure_future(self.message_handler(message.get('message')))
             elif message['message'].get('sticker'):
                 asyncio.ensure_future(self.sticker_handler(message.get('message')))
             else:
