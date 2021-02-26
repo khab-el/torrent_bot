@@ -5,4 +5,4 @@ configs/bot.cfg
 *.html
 venv
 telegabot/credentials.py
-*/*/__pycache__
+*/__pycache__

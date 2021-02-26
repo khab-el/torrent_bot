@@ -1,5 +1,6 @@
 import re
 import requests
+import logging
 from urllib.parse import unquote, quote
 
 from bs4 import BeautifulSoup
@@ -7,6 +8,20 @@ from bs4 import BeautifulSoup
 class Bot(object):
     def __init__(self):
         pass
+
+    def translite(self, text):
+        symbols = (u"абвгдеёжзийклмнопрстуфхцчшщыэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЭЮЯ ",
+           u"abvgdeejzijklmnoprstufhzcssyeuaABVGDEEJZIJKLMNOPRSTUFHZCSSYEUA_")
+        exclude_symbols = ['ь', 'ъ', 'Ь', 'Ъ']
+
+        tr = {ord(a):ord(b) for a, b in zip(*symbols)}
+        
+        for i in exclude_symbols:
+            tr[ord(i)] = None
+
+        text= u'%s' % text
+        
+        return text.translate(tr)
 
     def openSession(self, login, password):
         self.login = login
@@ -20,6 +35,13 @@ class Bot(object):
 
         # login in rutracker.org with generated body and sessions cookies
         resp = self.session.post(login_url, data=data_for_login, cookies=self.session.cookies)
+        responseCode = resp.status
+        if ((responseCode - (responseCode % 100)) / 100) == 2:
+            # print('Successful send')
+            logging.info(f'Successful login in rutracker')
+        else:
+            # print(resp.text())
+            logging.error(f'Request text - {message}; Response code - {responseCode}; Response header - {resp.headers}')
         #soup = BeautifulSoup(resp.content)
         #print(soup.decode("utf-8"), file=open('test.html','w'))
 
@@ -42,6 +64,9 @@ class Bot(object):
         self.aval_size = list(range(int(size.split('-')[0]), int(size.split('-')[1])))
 
         self.searchPage(file_name)
+        logging.debug(f'Starting search film {file_name}')
+        info = dict()
+        cnt =  0
         for item in self.soup.find_all('a', {"class": "small tr-dl dl-stub"}):
             if 'GB' in item.get_text():
                 item_size = item.get_text()
@@ -55,14 +80,20 @@ class Bot(object):
                     # print(get_data_topic_id, url_for_torrent)
                     for link in self.soup.find_all('a', {"class": "med tLink ts-text hl-tags bold"}):
                         if (('DVDRip' or 'HDRip' or 'BDRip' or 'WEB-DLRip' in link.get_text())) and (get_data_topic_id == link.get('data-topic_id')):
-                            resp_check_format = self.session.get('https://rutracker.org/forum/' + link.get('href'), cookies=self.session.cookies)
-                            bsoup = BeautifulSoup(resp_check_format.content, features="lxml")
-                            for form in bsoup.find_all('span'):
-                                download_url = 'https://rutracker.org/forum/' + url_for_torrent
-                                meta_info = link.get_text()
-                                return(download_url, meta_info)
+                            download_url = 'https://rutracker.org/forum/' + url_for_torrent
+                            meta_info = link.get_text()
+                            info[get_data_topic_id] = [download_url, meta_info, item_size]
+                            cnt += 1
+                            if cnt == 3:
+                                logging.info(f'Found >= 3 torrents film {file_name}')
+                                return(info)
+        
+        if cnt > 0 and cnt < 3:
+            logging.info(f'Found {cnt} torrents film {file_name}')
+            return(info)
 
     def downloadTorrent(self, download_url):
+        file_tr = self.translite(self.file_name)
         for i in self.soup.find_all('script'):
             if 'form_token' in str(i):
                 # print(re.split(r'(.*): \'(.*)\'', re.search( r'form_token: .*', i.get_text())[0])[2])
@@ -70,12 +101,14 @@ class Bot(object):
 
                 data_for_download = {'form_token': token_id}
                 resp_download_file = self.session.post(download_url, data=data_for_download, cookies=self.session.cookies)
-                file = open('torrent_file/'+self.file_name+'.torrent', 'wb')
+                file = open(f'torrent_file/{file_tr}.torrent', 'wb')
                 for chunk in resp_download_file.iter_content(100000):
                     file.write(chunk)
                 file.close()
+                
+                logging.info(f'Downloaded film {file_tr} successfull')
                 # print(file_name, download_url, 'Downloaded successfull')
-                return True
+                return(file_tr, self.file_name)
         
     def google_search(self, key, cse, file_name):
         url = 'https://www.googleapis.com/customsearch/v1'
@@ -106,6 +139,8 @@ class Bot(object):
                 year = str()
             break
 
+        logging.debug(f'End searching kinopoisk link for film {file_name}')
+
         ball_url = f'https://rating.kinopoisk.ru/{film_id}.xml'
         file_name += f' {year}'
 
@@ -118,6 +153,7 @@ class Bot(object):
         for item in soup.find_all('imdb_rating'):
             IMDb_ball += item.get_text()
 
+        logging.debug(f'End searching ball for film {file_name}')
         return(file_name, kinopoisk_ball, IMDb_ball, url)
 
     def find_trailer(self, key, cse, file_name):
