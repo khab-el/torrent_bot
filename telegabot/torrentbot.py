@@ -1,13 +1,14 @@
 import configparser
 import os
+import re
 
 from aiohttp import web
 # from aiohttp.client_reqrep import FormData
 import aiohttp
 import asyncio
 
-from bot import Bot
-from api import Conversation
+from .bot import Bot
+from .api import Conversation
 
 path_current_dir = os.path.dirname(__file__).replace('telegabot', '')
 path_config_file = os.path.join(path_current_dir, 'configs/bot.cfg')
@@ -21,6 +22,7 @@ KINOPOISK_CSE = config['kinopoisk']['cse']
 YOUTUBE_CSE = config['youtube']['cse']
 
 bot = Bot()
+bot.openSession(LOGIN,PASSWORD)
 
 class TorrentConversation(Conversation):
     def __init__(self, token, loop):
@@ -34,7 +36,6 @@ class TorrentConversation(Conversation):
         filmRait = bot.find_ball(API_KEY, KINOPOISK_CSE, text)
         trailer = bot.find_trailer(API_KEY, YOUTUBE_CSE, filmRait[0])
         
-        bot.openSession(LOGIN,PASSWORD)
         rutracker = bot.findTorrent(filmRait[0], size)
         text = f'Трейлер: {trailer}\nСтраница на Кинопоиск: {filmRait[3]}\n{filmRait[1]}\n{filmRait[2]}\n\n\n'
         for k,v in rutracker.items():
@@ -55,6 +56,6 @@ class TorrentConversation(Conversation):
     async def download_handler(self, message):
         chat_id = message['chat']['id']
         text = message['text']
-        download_url = 'https://rutracker.org/forum/dl.php?t=' + re.search(r'^/download(.*)', text)[1]
-        file_nm = bot.downloadTorrent(download_url)
-        await self.sendDocument(chat_id=chat_id, caption=file_nm[1], document=f'torrent_file/{file_nm[0]}.torrent')
+        download_url = re.search(r'^/download(.*)', text)[1]
+        bot.downloadTorrent(download_url)
+        await self.sendDocument(chat_id=chat_id, document=f'torrent_file/film_{download_url}.torrent')

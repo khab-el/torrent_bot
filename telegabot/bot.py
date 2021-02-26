@@ -25,13 +25,11 @@ class Bot(object):
         return text.translate(tr)
 
     def openSession(self, login, password):
-        self.login = login
-        self.password = password
         # open session for request rutracker.org
         self.session = requests.Session()
 
         # generate body and url for login in rutracker.org
-        data_for_login = {'redirect': 'index.php', 'login_username': self.login, 'login_password': self.password, 'login': 'Вход'}
+        data_for_login = {'redirect': 'index.php', 'login_username': login, 'login_password': password, 'login': 'Вход'}
         login_url = 'https://rutracker.org/forum/login.php'
 
         # login in rutracker.org with generated body and sessions cookies
@@ -40,11 +38,16 @@ class Bot(object):
         if ((responseCode - (responseCode % 100)) / 100) == 2:
             # print('Successful send')
             logging.info(f'Successful login in rutracker')
+            soup = BeautifulSoup(resp.content)
+            for i in soup.find_all('script'):
+                if 'form_token' in str(i):
+                    # print(re.split(r'(.*): \'(.*)\'', re.search( r'form_token: .*', i.get_text())[0])[2])
+                    #print(soup.decode("utf-8"), file=open('test.html','w'))
+                    self.token_id = re.search( r'form_token: \'([\w\d]+)\'', str(i))[1]
+                    break
         else:
             # print(resp.text())
             logging.error(f'Request text - {message}; Response code - {responseCode}; Response header - {resp.headers}')
-        #soup = BeautifulSoup(resp.content)
-        #print(soup.decode("utf-8"), file=open('test.html','w'))
 
     def searchPage(self, file_name):
         self.file_name = file_name
@@ -57,29 +60,28 @@ class Bot(object):
 
         # search on rutracker and write result in file
         resp_searching = self.session.post(search_url, data=data_for_searching, cookies=self.session.cookies)
-        self.soup = BeautifulSoup(resp_searching.content, features="lxml")
+        return BeautifulSoup(resp_searching.content, features="lxml")
         # print(soup.decode("utf-8"), file=open('test.html','w'))
 
     def findTorrent(self, file_name, size):
-        self.size = size
-        self.aval_size = list(range(int(size.split('-')[0]), int(size.split('-')[1])))
+        aval_size = list(range(int(size.split('-')[0]), int(size.split('-')[1])))
 
-        self.searchPage(file_name)
+        soup = self.searchPage(file_name)
         logging.debug(f'Starting search film {file_name}')
         info = dict()
         cnt =  0
-        for item in self.soup.find_all('a', {"class": "small tr-dl dl-stub"}):
+        for item in soup.find_all('a', {"class": "small tr-dl dl-stub"}):
             if 'GB' in item.get_text():
                 item_size = item.get_text()
                 if '.' in item.get_text():
                     m = item.get_text().split('.')[0]
                 else:
                     m = item.get_text().split(' GB')[0]
-                if int(m) in self.aval_size:
+                if int(m) in aval_size:
                     url_for_torrent = item.get('href')
                     get_data_topic_id = item.get('href').split('=')[1]
                     # print(get_data_topic_id, url_for_torrent)
-                    for link in self.soup.find_all('a', {"class": "med tLink ts-text hl-tags bold"}):
+                    for link in soup.find_all('a', {"class": "med tLink ts-text hl-tags bold"}):
                         if (('DVDRip' or 'HDRip' or 'BDRip' or 'WEB-DLRip' in link.get_text())) and (get_data_topic_id == link.get('data-topic_id')):
                             download_url = 'https://rutracker.org/forum/' + url_for_torrent
                             meta_info = link.get_text()
@@ -88,30 +90,24 @@ class Bot(object):
                             if cnt == 3:
                                 logging.info(f'Found >= 3 torrents film {file_name}')
                                 return(info)
-        
         if cnt > 0 and cnt < 3:
             logging.info(f'Found {cnt} torrents film {file_name}')
             return(info)
 
-    def downloadTorrent(self, download_url):
-        file_tr = self.translite(self.file_name)
-        for i in self.soup.find_all('script'):
-            if 'form_token' in str(i):
-                # print(re.split(r'(.*): \'(.*)\'', re.search( r'form_token: .*', i.get_text())[0])[2])
-                token_id = re.search( r'form_token: \'([\w\d]+)\'', str(i))[1]
+    def downloadTorrent(self, torrent_id):
+        # file_tr = self.translite(self.file_name)
+        os.makedirs('torrent_file/', exist_ok=True)
 
-                os.makedirs('torrent_file/', exist_ok=True)
-
-                data_for_download = {'form_token': token_id}
-                resp_download_file = self.session.post(download_url, data=data_for_download, cookies=self.session.cookies)
-                file = open(f'torrent_file/{file_tr}.torrent', 'wb')
-                for chunk in resp_download_file.iter_content(100000):
-                    file.write(chunk)
-                file.close()
-                
-                logging.info(f'Downloaded film {file_tr} successfull')
-                # print(file_name, download_url, 'Downloaded successfull')
-                return(file_tr, self.file_name)
+        data_for_download = {'form_token': self.token_id}
+        download_url = 'https://rutracker.org/forum/dl.php?t=' + torrent_id
+        resp_download_file = self.session.post(download_url, data=data_for_download, cookies=self.session.cookies)
+        file = open(f'torrent_file/film_{torrent_id}.torrent', 'wb')
+        for chunk in resp_download_file.iter_content(100000):
+            file.write(chunk)
+        file.close()
+        
+        logging.info(f'Downloaded film {file_tr} successfull')
+        # return(file_tr, self.file_name)
         
     def google_search(self, key, cse, file_name):
         url = 'https://www.googleapis.com/customsearch/v1'
