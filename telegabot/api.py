@@ -57,6 +57,28 @@ class Api(object):
 
         await self._request('sendMessage', json.dumps(message), headers)
 
+    async def sendSticker(self, chat_id, sticker, **kwargs):
+
+        message = {
+            "chat_id": chat_id,
+            "sticker": sticker
+        }
+
+        headers = {
+            'Content-Type': 'application/json'
+        }
+
+        if kwargs.get('disable_notification'):
+            message['disable_notification'] = kwargs['disable_notification']
+        if kwargs.get('reply_to_message_id'):
+            message['reply_to_message_id'] = kwargs['reply_to_message_id']
+        if kwargs.get('allow_sending_without_reply'):
+            message['allow_sending_without_reply'] = kwargs['allow_sending_without_reply']
+        if kwargs.get('reply_markup'):
+            message['reply_markup'] = kwargs['reply_markup']
+
+        await self._request('sendSticker', json.dumps(message), headers)
+
     async def sendDocument(self, chat_id, document, **kwargs):
 
         message = {
@@ -120,11 +142,16 @@ class Conversation(Api):
     async def download_handler(self, message):
         pass
 
+    async def sticker_handler(self, message):
+        pass
+
     async def handler(self, request):
         message = await request.json()
         if message.get('message'):
-            if re.search(r'^/download(.*)', message['message']['text']):
+            if re.search(r'^/download(.*)', message['message'].get('text')):
                 asyncio.ensure_future(self.download_handler(message.get('message')))
+            elif message['message'].get('sticker'):
+                asyncio.ensure_future(self.sticker_handler(message.get('message')))
             else:
                 asyncio.ensure_future(self.message_handler(message.get('message')))
         elif message.get('callback_query'):

@@ -108,7 +108,7 @@ class Bot(object):
                 
                 logging.info(f'Downloaded film {file_tr} successfull')
                 # print(file_name, download_url, 'Downloaded successfull')
-                return file_tr
+                return(file_tr, self.file_name)
         
     def google_search(self, key, cse, file_name):
         url = 'https://www.googleapis.com/customsearch/v1'

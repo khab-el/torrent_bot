@@ -21,6 +21,7 @@ config.read('configs/bot.cfg')
 
 TOKEN = config['secrets']['bot_token']
 PORT = config['server']['port']
+HOST = config['server']['host']
 
 LOGIN = config['rutracker']['login']
 PASSWORD = config['rutracker']['password']
@@ -58,14 +59,19 @@ class TorrentConversation(Conversation):
         chat_id = message['message']['chat']['id']
         call_back = message['data']
         callback_query_id = message['callback_query_id']
-        await self.sendMessage( chat_id, call_back )
+        await self.sendMessage( chat_id=chat_id, text=call_back )
+
+    async def sticker_handler(self, message):
+        chat_id = message['message']['chat']['id']
+        sticker = message['message']['sticker']['file_id']
+        await self.sendSticker( chat_id=chat_id, sticker=sticker )
 
     async def download_handler(self, message):
         chat_id = message['chat']['id']
         text = message['text']
         download_url = 'https://rutracker.org/forum/dl.php?t=' + re.search(r'^/download(.*)', text)[1]
         file_nm = bot.downloadTorrent(download_url)
-        await self.sendDocument(chat_id=chat_id, document=f'torrent_file/{file_nm}.torrent')
+        await self.sendDocument(chat_id=chat_id, caption=file_nm[1] document=f'torrent_file/{file_nm[0]}.torrent')
 
 # async def middleware_factory(app, handler):
 #     async def middleware_handler(request):
@@ -92,6 +98,7 @@ if __name__ == '__main__':
     context.load_cert_chain(WEBHOOK_SSL_CERT, WEBHOOK_SSL_PRIV)
 
     if LOGPATH:
+        os.makedirs(LOGPATH, exist_ok=True)
         logging.basicConfig(
             filename='{LOGPATH}/telegram_bot_{date}.log'.format(LOGPATH=LOGPATH, date=datetime.utcnow().astimezone(pytz.timezone('Europe/Moscow')).strftime("%Y-%m-%d")), 
             level=logging.DEBUG, 
@@ -102,5 +109,5 @@ if __name__ == '__main__':
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
             level=logging.DEBUG 
         )
-    web.run_app(app, host='0.0.0.0', port=PORT, ssl_context=context)
-    logging.info(f'Torrent bot start on 0.0.0.0:{PORT}')
+    web.run_app(app, host=HOST, port=PORT, ssl_context=context)
+    logging.info(f'Torrent bot start on {HOST}:{PORT}')
