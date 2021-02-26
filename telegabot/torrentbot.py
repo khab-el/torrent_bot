@@ -57,5 +57,5 @@ class TorrentConversation(Conversation):
         chat_id = message['chat']['id']
         text = message['text']
         download_url = re.search(r'^/download(.*)', text)[1]
-        bot.downloadTorrent(download_url)
-        await self.sendDocument(chat_id=chat_id, document=f'torrent_file/film_{download_url}.torrent')
+        filename = bot.downloadTorrent(download_url)
+        await self.sendDocument(chat_id=chat_id, document=f'torrent_file/{filename}')

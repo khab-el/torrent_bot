@@ -101,13 +101,25 @@ class Bot(object):
         data_for_download = {'form_token': self.token_id}
         download_url = 'https://rutracker.org/forum/dl.php?t=' + torrent_id
         resp_download_file = self.session.post(download_url, data=data_for_download, cookies=self.session.cookies)
-        file = open(f'torrent_file/film_{torrent_id}.torrent', 'wb')
-        for chunk in resp_download_file.iter_content(100000):
-            file.write(chunk)
-        file.close()
         
-        logging.info(f'Downloaded film {torrent_id} successfull')
-        # return(file_tr, self.file_name)
+        responseCode = resp_download_file.status_code
+        if ((responseCode - (responseCode % 100)) / 100) == 2:
+            cd = resp_download_file.headers.get('content-disposition')
+            fname = re.findall('filename\*=UTF-8\'\'(.+)', cd) 
+            if len(fname) == 0: 
+                filename = f'film_{torrent_id}.torrent'
+            else:
+                filename = self.translite(unquote(fname[0]))
+
+            file = open(f'torrent_file/{filename}', 'wb')
+            for chunk in resp_download_file.iter_content(100000):
+                file.write(chunk)
+            file.close()
+
+            logging.info(f'Downloaded film {filename} successfull')
+        else:
+            logging.error(f'Response code - {responseCode}; Response header - {resp.headers}')
+        return filename
         
     def google_search(self, key, cse, file_name):
         url = 'https://www.googleapis.com/customsearch/v1'
