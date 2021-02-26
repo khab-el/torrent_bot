@@ -50,11 +50,11 @@ class Bot(object):
             logging.error(f'Request text - {message}; Response code - {responseCode}; Response header - {resp.headers}')
 
     def searchPage(self, file_name):
-        self.file_name = file_name
+        # self.file_name = file_name
         # generate body and url for searching in rutracker in same session with sessions cookies
-        file_url_encoded = quote(self.file_name.encode("utf8"))
+        file_url_encoded = quote(file_name.encode("utf8"))
         #data_for_searching = {'max': '1', 'nm': file_name}
-        data_for_searching = {'f[]': '-1', 'o': '4', 's': '2', 'pn': '', 'nm': self.file_name}
+        data_for_searching = {'f[]': '-1', 'o': '4', 's': '2', 'pn': '', 'nm': file_name}
         search_url = "https://rutracker.org/forum/tracker.php?nm=" + file_url_encoded
         #print(data_for_searching, search_url)
 
@@ -106,7 +106,7 @@ class Bot(object):
             file.write(chunk)
         file.close()
         
-        logging.info(f'Downloaded film {file_tr} successfull')
+        logging.info(f'Downloaded film {torrent_id} successfull')
         # return(file_tr, self.file_name)
         
     def google_search(self, key, cse, file_name):
