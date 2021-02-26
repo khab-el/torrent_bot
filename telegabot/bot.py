@@ -38,7 +38,7 @@ class Bot(object):
         if ((responseCode - (responseCode % 100)) / 100) == 2:
             # print('Successful send')
             logging.info(f'Successful login in rutracker')
-            soup = BeautifulSoup(resp.content)
+            soup = BeautifulSoup(resp.content, features="lxml")
             for i in soup.find_all('script'):
                 if 'form_token' in str(i):
                     # print(re.split(r'(.*): \'(.*)\'', re.search( r'form_token: .*', i.get_text())[0])[2])
