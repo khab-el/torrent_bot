@@ -1,6 +1,7 @@
 import re
 import requests
 import logging
+import os
 from urllib.parse import unquote, quote
 
 from bs4 import BeautifulSoup
@@ -98,6 +99,8 @@ class Bot(object):
             if 'form_token' in str(i):
                 # print(re.split(r'(.*): \'(.*)\'', re.search( r'form_token: .*', i.get_text())[0])[2])
                 token_id = re.search( r'form_token: \'([\w\d]+)\'', str(i))[1]
+
+                os.makedirs('torrent_file/', exist_ok=True)
 
                 data_for_download = {'form_token': token_id}
                 resp_download_file = self.session.post(download_url, data=data_for_download, cookies=self.session.cookies)

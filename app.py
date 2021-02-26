@@ -62,8 +62,8 @@ class TorrentConversation(Conversation):
         await self.sendMessage( chat_id=chat_id, text=call_back )
 
     async def sticker_handler(self, message):
-        chat_id = message['message']['chat']['id']
-        sticker = message['message']['sticker']['file_id']
+        chat_id = message['chat']['id']
+        sticker = message['sticker']['file_id']
         await self.sendSticker( chat_id=chat_id, sticker=sticker )
 
     async def download_handler(self, message):
@@ -106,7 +106,7 @@ if __name__ == '__main__':
             datefmt='%m/%d/%Y %I:%M:%S %p')
     else:
         logging.basicConfig(
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            format='%(asctime)s - %(name)s - %(levelname)s : %(message)s',
             level=logging.DEBUG 
         )
     web.run_app(app, host=HOST, port=PORT, ssl_context=context)
