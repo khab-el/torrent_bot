@@ -71,7 +71,7 @@ class TorrentConversation(Conversation):
         text = message['text']
         download_url = 'https://rutracker.org/forum/dl.php?t=' + re.search(r'^/download(.*)', text)[1]
         file_nm = bot.downloadTorrent(download_url)
-        await self.sendDocument(chat_id=chat_id, caption=file_nm[1] document=f'torrent_file/{file_nm[0]}.torrent')
+        await self.sendDocument(chat_id=chat_id, caption=file_nm[1], document=f'torrent_file/{file_nm[0]}.torrent')
 
 # async def middleware_factory(app, handler):
 #     async def middleware_handler(request):
